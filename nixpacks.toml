@@ -1,16 +1,15 @@
-[build]
-# Force Railway to use Nixpacks instead of Docker
-provider = "nixpacks"
+[phases.setup]
+# Install Chromium from nixpkgs for Puppeteer to use
+nixPkgs = ["chromium"]
 
 [phases.install]
-cmds = [
-  "npm install",
-  "npx playwright install-deps", 
-  "npx playwright install chromium"
-]
+# Skip Puppeteer's Chromium download, use system Chrome instead
+cmds = ["npm install"]
 
 [start]
 cmd = "npm start"
 
 [variables]
 NODE_ENV = "production"
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/nix/store/chromium/bin/chromium"

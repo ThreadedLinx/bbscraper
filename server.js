@@ -28,8 +28,18 @@ let browser = null;
 async function getBrowser() {
   if (!browser || !browser.isConnected()) {
     console.log('Launching new browser instance...');
+    
+    // Use system Chrome if available (Railway), otherwise let Puppeteer use its own
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
+                          (process.env.NODE_ENV === 'production' ? '/usr/bin/chromium' : undefined);
+    
+    if (executablePath) {
+      console.log('Using system Chrome at:', executablePath);
+    }
+    
     browser = await puppeteer.launch({
       headless: true,
+      executablePath: executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
