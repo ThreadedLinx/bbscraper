@@ -1,9 +1,9 @@
-import express from 'express';
-import { chromium } from 'playwright-extra';
-import stealth from 'playwright-extra-plugin-stealth';
-import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+const express = require('express');
+const { chromium } = require('playwright-extra');
+const stealth = require('playwright-extra-plugin-stealth');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
 
 // Use stealth plugin to avoid detection
 chromium.use(stealth());
