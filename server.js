@@ -109,42 +109,98 @@ app.post('/scrape', async (req, res) => {
     console.log(`🕷️ Scraping BizBuySell listing: ${url}`);
     const browser = await getBrowser();
     
-    // Create new context with enhanced stealth configuration
+    // Create new context with advanced anti-detection configuration
     context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1440, height: 900 }, // More common macOS resolution
       locale: 'en-US',
       timezoneId: 'America/New_York',
       extraHTTPHeaders: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'DNT': '1',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://www.google.com/',
         'Sec-Fetch-Dest': 'document',
         'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Site': 'cross-site',
+        'Sec-Fetch-User': '?1',
         'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
         'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"'
+        'Sec-Ch-Ua-Platform': '"macOS"'
       }
     });
     
     page = await context.newPage();
     
+    // Set realistic cookies to simulate a real browsing session
+    console.log('🍪 Setting realistic session cookies...');
+    await context.addCookies([
+      {
+        name: '_ga',
+        value: 'GA1.2.' + Math.random().toString(36).substring(2, 15),
+        domain: '.bizbuysell.com',
+        path: '/'
+      },
+      {
+        name: '_gid', 
+        value: 'GA1.2.' + Math.random().toString(36).substring(2, 15),
+        domain: '.bizbuysell.com',
+        path: '/'
+      },
+      {
+        name: 'session_id',
+        value: Math.random().toString(36).substring(2, 15),
+        domain: '.bizbuysell.com',
+        path: '/'
+      },
+      {
+        name: 'visited',
+        value: 'true',
+        domain: '.bizbuysell.com',
+        path: '/'
+      }
+    ]);
+    
     // Don't block resources initially - let the page load naturally first
     // This helps avoid detection as blocking resources can be suspicious
     
-    // Navigate with faster, more reliable settings
+    // Navigate with realistic settings (simulate clicking from Google)
     console.log('🌐 Navigating to:', url);
     await page.goto(url, { 
-      waitUntil: 'domcontentloaded',  // Much faster and more reliable
-      timeout: 30000  // Reasonable timeout
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+      referer: 'https://www.google.com/'  // Appear as if coming from Google search
     });
     
-    // Add human-like delay
-    console.log('⏳ Waiting for page to fully load...');
-    await page.waitForTimeout(5000);  // 5 second delay to appear more human
+    // Add realistic human-like delay
+    console.log('⏳ Simulating page reading time...');
+    await page.waitForTimeout(3000 + Math.random() * 3000);  // Random 3-6 second delay
+    
+    // Simulate human mouse movements
+    console.log('🖱️ Simulating realistic mouse activity...');
+    await page.mouse.move(100, 100);
+    await page.waitForTimeout(500);
+    await page.mouse.move(300, 200);
+    await page.waitForTimeout(300);
+    await page.mouse.move(500, 400);
+    await page.waitForTimeout(200);
+    
+    // Scroll down a bit to simulate reading
+    await page.evaluate(() => {
+      window.scrollTo(0, 200);
+    });
+    await page.waitForTimeout(1000);
+    
+    // Scroll back up
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(1500);
     
     // Wait for main content with multiple selectors
     try {
