@@ -1,8 +1,12 @@
 const express = require('express');
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
+
+// Add stealth plugin to puppeteer
+puppeteer.use(StealthPlugin());
 
 dotenv.config();
 
@@ -24,7 +28,7 @@ let browser = null;
 async function getBrowser() {
   if (!browser || !browser.isConnected()) {
     console.log('Launching new browser instance...');
-    browser = await chromium.launch({
+    browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -97,44 +101,33 @@ app.post('/scrape', async (req, res) => {
     });
   }
 
-  let context;
   let page;
 
   try {
     console.log(`🕷️ Scraping BizBuySell listing: ${url}`);
     const browser = await getBrowser();
     
-    // Create new context with advanced anti-detection configuration
-    context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1440, height: 900 }, // More common macOS resolution
-      locale: 'en-US',
-      timezoneId: 'America/New_York',
-      extraHTTPHeaders: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Referer': 'https://www.google.com/',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'cross-site',
-        'Sec-Fetch-User': '?1',
-        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"macOS"'
-      }
-    });
+    // Create new page with Puppeteer (stealth plugin auto-applies)
+    page = await browser.newPage();
     
-    page = await context.newPage();
+    // Set user agent and viewport
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1440, height: 900 });
+    
+    // Set extra headers
+    await page.setExtraHTTPHeaders({
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'DNT': '1',
+      'Referer': 'https://www.google.com/'
+    });
     
     // Set realistic cookies to simulate a real browsing session
     console.log('🍪 Setting realistic session cookies...');
-    await context.addCookies([
+    await page.setCookie(
       {
         name: '_ga',
         value: 'GA1.2.' + Math.random().toString(36).substring(2, 15),
@@ -159,7 +152,7 @@ app.post('/scrape', async (req, res) => {
         domain: '.bizbuysell.com',
         path: '/'
       }
-    ]);
+    );
     
     // Don't block resources initially - let the page load naturally first
     // This helps avoid detection as blocking resources can be suspicious
@@ -168,8 +161,7 @@ app.post('/scrape', async (req, res) => {
     console.log('🌐 Navigating to:', url);
     await page.goto(url, { 
       waitUntil: 'domcontentloaded',
-      timeout: 30000,
-      referer: 'https://www.google.com/'  // Appear as if coming from Google search
+      timeout: 30000
     });
     
     // Add realistic human-like delay
@@ -468,12 +460,12 @@ app.post('/scrape', async (req, res) => {
       error: error.message || 'Failed to scrape BizBuySell listing'
     });
   } finally {
-    // Clean up context
-    if (context) {
+    // Clean up page
+    if (page) {
       try {
-        await context.close();
+        await page.close();
       } catch (e) {
-        console.error('Error closing context:', e);
+        console.error('Error closing page:', e);
       }
     }
   }
