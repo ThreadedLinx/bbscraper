@@ -33,7 +33,10 @@ async function getBrowser() {
         '--disable-gpu',
         '--no-zygote',
         '--single-process',
-        '--disable-web-security'
+        '--disable-web-security',
+        '--disable-http2',
+        '--disable-quic',
+        '--disable-features=VizDisplayCompositor'
       ]
     });
   }
