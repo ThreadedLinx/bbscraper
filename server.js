@@ -135,11 +135,11 @@ app.post('/scrape', async (req, res) => {
     // Don't block resources initially - let the page load naturally first
     // This helps avoid detection as blocking resources can be suspicious
     
-    // Navigate with more realistic settings
+    // Navigate with faster, more reliable settings
     console.log('🌐 Navigating to:', url);
     await page.goto(url, { 
-      waitUntil: 'networkidle',  // Wait for network to be idle
-      timeout: 60000  // Longer timeout
+      waitUntil: 'domcontentloaded',  // Much faster and more reliable
+      timeout: 30000  // Reasonable timeout
     });
     
     // Add human-like delay
