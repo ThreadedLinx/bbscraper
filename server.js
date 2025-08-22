@@ -1,8 +1,12 @@
 import express from 'express';
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import stealth from 'playwright-extra-plugin-stealth';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+
+// Use stealth plugin to avoid detection
+chromium.use(stealth());
 
 dotenv.config();
 
@@ -30,13 +34,8 @@ async function getBrowser() {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-zygote',
-        '--single-process',
-        '--disable-web-security',
         '--disable-http2',
-        '--disable-quic',
-        '--disable-features=VizDisplayCompositor'
+        '--disable-quic'
       ]
     });
   }
