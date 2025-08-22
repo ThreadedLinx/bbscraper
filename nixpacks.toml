@@ -1,0 +1,16 @@
+[build]
+# Force Railway to use Nixpacks instead of Docker
+provider = "nixpacks"
+
+[phases.install]
+cmds = [
+  "npm install",
+  "npx playwright install-deps", 
+  "npx playwright install chromium"
+]
+
+[start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
