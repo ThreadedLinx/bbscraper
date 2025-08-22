@@ -399,24 +399,9 @@ app.post('/scrape', async (req, res) => {
       parsed_at: new Date().toISOString()
     };
     
-    // Store in Supabase if we have service key
-    if (process.env.SUPABASE_SERVICE_KEY) {
-      const { data: savedData, error: dbError } = await supabase
-        .from('executive_summaries')
-        .upsert({
-          deal_id: dealId,
-          ...finalData
-        })
-        .select()
-        .single();
-      
-      if (dbError) {
-        console.error('❌ Database error:', dbError);
-        // Continue anyway - return scraped data
-      } else {
-        console.log('✅ Data saved to Supabase');
-      }
-    }
+    // Note: Database save is handled by the Edge Function to avoid duplicates
+    // Railway service only returns the scraped data
+    console.log('📤 Returning scraped data to Edge Function for database save');
     
     res.json({
       success: true,
