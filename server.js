@@ -1,12 +1,8 @@
 const express = require('express');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { chromium } = require('playwright');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
-
-// Add stealth plugin to puppeteer
-puppeteer.use(StealthPlugin());
 
 dotenv.config();
 
@@ -28,24 +24,19 @@ let browser = null;
 async function getBrowser() {
   if (!browser || !browser.isConnected()) {
     console.log('Launching new browser instance...');
-    
-    // Use system Chrome if available (Railway), otherwise let Puppeteer use its own
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
-                          (process.env.NODE_ENV === 'production' ? '/usr/bin/chromium' : undefined);
-    
-    if (executablePath) {
-      console.log('Using system Chrome at:', executablePath);
-    }
-    
-    browser = await puppeteer.launch({
+    browser = await chromium.launch({
       headless: true,
-      executablePath: executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+        '--single-process',
+        '--disable-web-security',
         '--disable-http2',
-        '--disable-quic'
+        '--disable-quic',
+        '--disable-features=VizDisplayCompositor'
       ]
     });
   }
@@ -111,33 +102,44 @@ app.post('/scrape', async (req, res) => {
     });
   }
 
+  let context;
   let page;
 
   try {
     console.log(`🕷️ Scraping BizBuySell listing: ${url}`);
     const browser = await getBrowser();
     
-    // Create new page with Puppeteer (stealth plugin auto-applies)
-    page = await browser.newPage();
-    
-    // Set user agent and viewport
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1440, height: 900 });
-    
-    // Set extra headers
-    await page.setExtraHTTPHeaders({
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-      'DNT': '1',
-      'Referer': 'https://www.google.com/'
+    // Create new context with comprehensive anti-detection configuration
+    context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1440, height: 900 },
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      extraHTTPHeaders: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://www.google.com/',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'cross-site',
+        'Sec-Fetch-User': '?1',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"macOS"'
+      }
     });
+    
+    page = await context.newPage();
     
     // Set realistic cookies to simulate a real browsing session
     console.log('🍪 Setting realistic session cookies...');
-    await page.setCookie(
+    await context.addCookies([
       {
         name: '_ga',
         value: 'GA1.2.' + Math.random().toString(36).substring(2, 15),
@@ -162,7 +164,7 @@ app.post('/scrape', async (req, res) => {
         domain: '.bizbuysell.com',
         path: '/'
       }
-    );
+    ]);
     
     // Don't block resources initially - let the page load naturally first
     // This helps avoid detection as blocking resources can be suspicious
@@ -470,12 +472,12 @@ app.post('/scrape', async (req, res) => {
       error: error.message || 'Failed to scrape BizBuySell listing'
     });
   } finally {
-    // Clean up page
-    if (page) {
+    // Clean up context
+    if (context) {
       try {
-        await page.close();
+        await context.close();
       } catch (e) {
-        console.error('Error closing page:', e);
+        console.error('Error closing context:', e);
       }
     }
   }
