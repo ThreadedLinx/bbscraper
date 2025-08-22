@@ -106,32 +106,54 @@ app.post('/scrape', async (req, res) => {
     console.log(`🕷️ Scraping BizBuySell listing: ${url}`);
     const browser = await getBrowser();
     
-    // Create new context (isolated session)
+    // Create new context with enhanced stealth configuration
     context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1920, height: 1080 }
+      viewport: { width: 1920, height: 1080 },
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      extraHTTPHeaders: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"'
+      }
     });
     
     page = await context.newPage();
     
-    // Block unnecessary resources for faster loading
-    await page.route('**/*.{png,jpg,jpeg,gif,svg,mp4,mp3,css,font,woff,woff2}', 
-      route => route.abort()
-    );
+    // Don't block resources initially - let the page load naturally first
+    // This helps avoid detection as blocking resources can be suspicious
     
-    // Navigate with timeout
+    // Navigate with more realistic settings
+    console.log('🌐 Navigating to:', url);
     await page.goto(url, { 
-      waitUntil: 'domcontentloaded',
-      timeout: 30000 
+      waitUntil: 'networkidle',  // Wait for network to be idle
+      timeout: 60000  // Longer timeout
     });
     
-    // Wait for main content
-    await page.waitForSelector('h1, .listing-title, [data-cy="listing-title"]', { 
-      timeout: 15000 
-    });
+    // Add human-like delay
+    console.log('⏳ Waiting for page to fully load...');
+    await page.waitForTimeout(5000);  // 5 second delay to appear more human
+    
+    // Wait for main content with multiple selectors
+    try {
+      await page.waitForSelector('h1, .listing-title, [data-cy="listing-title"], .business-title', { 
+        timeout: 20000 
+      });
+    } catch (e) {
+      console.log('⚠️ Main selector not found, continuing with current page state');
+    }
 
-    // Add a small delay to ensure dynamic content loads
-    await page.waitForTimeout(2000);
+    // Additional delay after content loads
+    await page.waitForTimeout(3000);
     
     // Extract data using Playwright's evaluate
     const extractedData = await page.evaluate(() => {
